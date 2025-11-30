@@ -1,9 +1,23 @@
-/*
- * metrics_probe/main.cpp - Sample Prometheus-style metrics probe
- *
- * Simulates a probe that collects metrics and publishes to DDS.
- * In production, this would scrape /metrics endpoints or receive OTLP.
- */
+// Copyright 2025 VDR-Light Contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// @file metrics_probe/main.cpp
+/// @brief Sample Prometheus-style metrics probe
+///
+/// Simulates a probe that collects metrics and publishes to DDS.
+/// In production, this would scrape /metrics endpoints or receive OTLP.
 
 #include "common/dds_wrapper.hpp"
 #include "common/qos_profiles.hpp"

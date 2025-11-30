@@ -1,9 +1,23 @@
-/*
- * vdr/main.cpp - Vehicle Data Readout main entry point
- *
- * VDR subscribes to DDS topics and forwards data for offboarding.
- * In this PoC, "offboarding" means logging what would be sent via MQTT.
- */
+// Copyright 2025 VDR-Light Contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// @file vdr/main.cpp
+/// @brief Vehicle Data Readout main entry point
+///
+/// VDR subscribes to DDS topics and forwards data for offboarding.
+/// In this PoC, "offboarding" means logging what would be sent via MQTT.
 
 #include "common/dds_wrapper.hpp"
 #include "vdr/subscriber.hpp"
