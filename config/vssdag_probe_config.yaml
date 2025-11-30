@@ -1,0 +1,189 @@
+# VSS DAG Probe Configuration
+#
+# This file defines the signal processing pipeline for transforming
+# raw CAN signals into VSS format using libvssdag.
+#
+# Signal flow: CAN frame -> DBC decode -> DAG transforms -> VSS output -> DDS
+#
+# Transform types:
+#   - direct: No transformation (pass-through)
+#   - code: Lua expression or function
+#   - value_map: Lookup table for discrete values
+#
+# Built-in Lua functions:
+#   - lowpass(x, alpha): Low-pass filter
+#   - moving_average(x, window): Moving average filter
+#   - derivative(x): Rate of change
+#   - threshold(x, low, high): Clamp to range
+#   - delayed(x, ms): Delayed propagation
+#   - sustained_condition(cond, ms): Debouncing
+#   - state: Persistent state table per signal
+
+signals:
+  # ===========================================================================
+  # Vehicle Speed - filtered from CAN
+  # ===========================================================================
+  - signal: Vehicle.Speed
+    source:
+      type: dbc
+      name: DI_vehicleSpeed          # CAN signal name from DBC
+    datatype: float
+    transform:
+      code: "lowpass(x, 0.3)"  # Smooth out noise
+    interval_ms: 100                  # Max 10 Hz output
+
+  # ===========================================================================
+  # Derived: Acceleration from Speed
+  # ===========================================================================
+  - signal: Vehicle.Acceleration.Longitudinal
+    depends_on:
+      - Vehicle.Speed
+    datatype: float
+    transform:
+      code: |
+        -- Derivative of speed gives acceleration
+        -- Convert km/h/s to m/s²: divide by 3.6
+        local accel = derivative(deps['Vehicle.Speed'])
+        return accel / 3.6
+    update_trigger: on_dependency
+
+  # ===========================================================================
+  # Battery State of Charge
+  # ===========================================================================
+  - signal: Vehicle.Powertrain.TractionBattery.StateOfCharge.Current
+    source:
+      type: dbc
+      name: BMS_socDisplay
+    datatype: float
+    transform:
+      code: "threshold(x, 0, 100)"  # Clamp to valid range
+    interval_ms: 1000                       # 1 Hz is sufficient
+
+  # ===========================================================================
+  # Battery charging state - derived from SOC change rate
+  # ===========================================================================
+  - signal: Vehicle.Powertrain.TractionBattery.IsCharging
+    depends_on:
+      - Vehicle.Powertrain.TractionBattery.StateOfCharge.Current
+    datatype: bool
+    transform:
+      code: |
+        local soc = deps['Vehicle.Powertrain.TractionBattery.StateOfCharge.Current']
+        local soc_rate = derivative(soc)
+        -- Charging if SOC increasing and vehicle stationary
+        return sustained_condition(soc_rate > 0.1, 5000)  -- 5 sec debounce
+    update_trigger: on_dependency
+
+  # ===========================================================================
+  # GPS Location - pass-through with smoothing
+  # ===========================================================================
+  - signal: Vehicle.CurrentLocation.Latitude
+    source:
+      type: dbc
+      name: GPS_latitude
+    datatype: double
+    transform:
+      code: "moving_average(x, 3)"   # Smooth GPS jitter
+    interval_ms: 1000
+
+  - signal: Vehicle.CurrentLocation.Longitude
+    source:
+      type: dbc
+      name: GPS_longitude
+    datatype: double
+    transform:
+      code: "moving_average(x, 3)"
+    interval_ms: 1000
+
+  # ===========================================================================
+  # Steering angle
+  # ===========================================================================
+  - signal: Vehicle.Chassis.SteeringWheel.Angle
+    source:
+      type: dbc
+      name: EPAS_steeringAngle
+    datatype: float
+    interval_ms: 50                         # 20 Hz for responsive steering
+
+  # ===========================================================================
+  # Gear position - value mapping
+  # ===========================================================================
+  - signal: Vehicle.Powertrain.Transmission.CurrentGear
+    source:
+      type: dbc
+      name: DI_gear
+    datatype: int32
+    transform:
+      value_map:
+        "0": "-1"    # Reverse
+        "1": "0"     # Park/Neutral
+        "2": "1"     # Drive
+        "3": "2"     # Low
+    interval_ms: 500
+
+  # ===========================================================================
+  # Turn signals - boolean from discrete values
+  # ===========================================================================
+  - signal: Vehicle.Body.Lights.IsTurnSignalLeftOn
+    source:
+      type: dbc
+      name: VCLEFT_turnSignalStatus
+    datatype: bool
+    transform:
+      code: "x > 0"
+    interval_ms: 100
+
+  - signal: Vehicle.Body.Lights.IsTurnSignalRightOn
+    source:
+      type: dbc
+      name: VCRIGHT_turnSignalStatus
+    datatype: bool
+    transform:
+      code: "x > 0"
+    interval_ms: 100
+
+  # ===========================================================================
+  # HVAC temperature - with hysteresis
+  # ===========================================================================
+  - signal: Vehicle.Cabin.HVAC.Station.Row1.Left.Temperature
+    source:
+      type: dbc
+      name: HVAC_tempSetpointLeft
+    datatype: float
+    transform:
+      code: |
+        -- Only report changes > 0.5 degrees (hysteresis)
+        if state.last_reported == nil then
+          state.last_reported = x
+          return x
+        end
+        if math.abs(x - state.last_reported) > 0.5 then
+          state.last_reported = x
+          return x
+        end
+        return state.last_reported
+    interval_ms: 5000                       # Heartbeat every 5 seconds
+
+  # ===========================================================================
+  # Simulated/Mock signals (for testing without real CAN)
+  # ===========================================================================
+  - signal: CAN.VehicleSpeed
+    source:
+      type: mock                            # Simulated in code
+      name: sim_vehicle_speed
+    datatype: float
+
+  - signal: CAN.BatterySOC
+    source:
+      type: mock
+      name: sim_battery_soc
+    datatype: float
+
+  # Map mock signals to VSS (for simulation mode)
+  - signal: Vehicle.Speed.Simulated
+    depends_on:
+      - CAN.VehicleSpeed
+    datatype: float
+    transform:
+      code: "lowpass(deps['CAN.VehicleSpeed'], 0.3)"
+    interval_ms: 100

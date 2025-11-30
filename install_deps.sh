@@ -82,6 +82,61 @@ info "Installing nlohmann-json..."
 sudo apt-get install -y \
     nlohmann-json3-dev
 
+# gRPC and Protobuf for OTLP receiver
+info "Installing gRPC and Protobuf..."
+sudo apt-get install -y \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    protobuf-compiler-grpc
+
+# Lua for libvssdag scripting
+info "Installing Lua..."
+sudo apt-get install -y \
+    liblua5.4-dev
+
+# libvssdag and dependencies (CAN-to-VSS transformation)
+info "Installing libvssdag dependencies..."
+sudo apt-get install -y \
+    can-utils \
+    linux-modules-extra-$(uname -r) || true  # For vcan module
+
+# libvssdag - build from source if not installed
+info "Checking for libvssdag..."
+if ! pkg-config --exists vssdag 2>/dev/null; then
+    info "Installing libvssdag from source..."
+    TEMP_DIR=$(mktemp -d)
+    pushd "$TEMP_DIR" > /dev/null
+    git clone --depth 1 https://github.com/tr-sdv-sandbox/libvssdag.git
+    cd libvssdag
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j$(nproc)
+    sudo cmake --install build
+    popd > /dev/null
+    rm -rf "$TEMP_DIR"
+    info "libvssdag installed successfully"
+else
+    info "libvssdag already installed"
+fi
+
+# Open1722 - IEEE 1722 AVTP library for CAN-over-Ethernet
+info "Checking for Open1722..."
+if ! pkg-config --exists open1722 2>/dev/null; then
+    info "Installing Open1722 from source..."
+    TEMP_DIR=$(mktemp -d)
+    pushd "$TEMP_DIR" > /dev/null
+    git clone --depth 1 https://github.com/COVESA/Open1722.git
+    cd Open1722
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j$(nproc)
+    sudo cmake --install build
+    popd > /dev/null
+    rm -rf "$TEMP_DIR"
+    info "Open1722 installed successfully"
+else
+    info "Open1722 already installed"
+fi
+
 # Verify installations
 echo ""
 info "Verifying installations..."
@@ -104,6 +159,9 @@ verify_package "libgoogle-glog-dev"
 verify_package "libyaml-cpp-dev"
 verify_package "libgtest-dev"
 verify_package "nlohmann-json3-dev"
+verify_package "libgrpc++-dev"
+verify_package "libprotobuf-dev"
+verify_package "protobuf-compiler"
 verify_package "cmake"
 verify_package "build-essential"
 
@@ -138,6 +196,26 @@ if pkg-config --exists cyclonedds; then
     echo "  Library path: $(pkg-config --libs cyclonedds)"
 else
     warn "pkg-config cannot find cyclonedds. CMake may need manual configuration."
+fi
+
+# Check libvssdag
+echo ""
+info "libvssdag pkg-config info:"
+if pkg-config --exists vssdag; then
+    echo -e "  ${GREEN}✓${NC} libvssdag installed"
+    echo "  Version: $(pkg-config --modversion vssdag 2>/dev/null || echo 'unknown')"
+else
+    warn "libvssdag not installed - vssdag probe will not be built"
+fi
+
+# Check Open1722
+echo ""
+info "Open1722 pkg-config info:"
+if pkg-config --exists open1722; then
+    echo -e "  ${GREEN}✓${NC} Open1722 installed"
+    echo "  Version: $(pkg-config --modversion open1722 2>/dev/null || echo 'unknown')"
+else
+    warn "Open1722 not installed - AVTP probe will not be built"
 fi
 
 echo ""

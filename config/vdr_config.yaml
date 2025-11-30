@@ -1,0 +1,66 @@
+# VDR Configuration
+#
+# Controls which DDS topics VDR subscribes to and forwards for offboarding.
+
+# DDS domain ID (0 is default)
+domain_id: 0
+
+# Subscription configuration
+# Each entry defines a topic subscription
+subscriptions:
+  - topic: "rt/vss/signals"
+    enabled: true
+    buffer_size: 1000
+    priority: high
+
+  - topic: "rt/events/vehicle"
+    enabled: true
+    buffer_size: 100
+    priority: critical
+
+  - topic: "rt/telemetry/gauges"
+    enabled: true
+    buffer_size: 50
+    priority: low
+
+  - topic: "rt/telemetry/counters"
+    enabled: true
+    buffer_size: 50
+    priority: low
+
+  - topic: "rt/telemetry/histograms"
+    enabled: true
+    buffer_size: 20
+    priority: low
+
+  - topic: "rt/logs/entries"
+    enabled: true
+    buffer_size: 100
+    priority: low
+
+  - topic: "rt/diagnostics/scalar"
+    enabled: true
+    buffer_size: 50
+    priority: medium
+
+  - topic: "rt/diagnostics/vector"
+    enabled: true
+    buffer_size: 20
+    priority: medium
+
+# Offboard configuration (simulated in PoC)
+offboard:
+  # Format for logging (json or compact)
+  log_format: json
+
+  # Batch size before flush
+  batch_size: 10
+
+  # Maximum time between flushes (ms)
+  flush_interval_ms: 1000
+
+  # Priority levels affect buffering and drop behavior
+  # critical: never drop, deep buffer
+  # high: rarely drop, large buffer
+  # medium: may drop under pressure
+  # low: first to drop when constrained

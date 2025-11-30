@@ -1,0 +1,18 @@
+// Copyright 2019, OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package opentelemetry.proto.resource.v1;
+
+import "opentelemetry/proto/common/v1/common.proto";
+
+option java_package = "io.opentelemetry.proto.resource.v1";
+option java_outer_classname = "ResourceProto";
+option go_package = "go.opentelemetry.io/proto/otlp/resource/v1";
+
+// Resource information.
+message Resource {
+  repeated opentelemetry.proto.common.v1.KeyValue attributes = 1;
+  uint32 dropped_attributes_count = 2;
+}

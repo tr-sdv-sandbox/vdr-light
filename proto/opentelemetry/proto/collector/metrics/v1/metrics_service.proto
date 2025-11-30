@@ -1,0 +1,34 @@
+// Copyright 2019, OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package opentelemetry.proto.collector.metrics.v1;
+
+import "opentelemetry/proto/metrics/v1/metrics.proto";
+
+option java_package = "io.opentelemetry.proto.collector.metrics.v1";
+option java_outer_classname = "MetricsServiceProto";
+option go_package = "go.opentelemetry.io/proto/otlp/collector/metrics/v1";
+
+// Service that can be used to push metrics between one Application
+// instrumented with OpenTelemetry and a collector, or between a collector and
+// a central collector.
+service MetricsService {
+  // For performance reasons, it is recommended to keep this RPC
+  // temporary connection open.
+  rpc Export(ExportMetricsServiceRequest) returns (ExportMetricsServiceResponse) {}
+}
+
+message ExportMetricsServiceRequest {
+  repeated opentelemetry.proto.metrics.v1.ResourceMetrics resource_metrics = 1;
+}
+
+message ExportMetricsServiceResponse {
+  ExportMetricsPartialSuccess partial_success = 1;
+}
+
+message ExportMetricsPartialSuccess {
+  int64 rejected_data_points = 1;
+  string error_message = 2;
+}
