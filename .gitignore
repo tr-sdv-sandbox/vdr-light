@@ -31,11 +31,6 @@ out/
 # IDL generated
 generated/
 
-# Logs
-*.log
-log/
-logs/
-
 # Core dumps
 core
 core.*
