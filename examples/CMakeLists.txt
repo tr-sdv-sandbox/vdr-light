@@ -3,6 +3,9 @@
 # The IDL and IDL-dependent libraries here are for demonstration only -
 # not exported as part of vdr-light.
 
+# VEP_DDS_ROOT points to vep-dds directory (works when built as subdirectory)
+set(VEP_DDS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
 # ============================================================================
 # Dependencies for examples
 # ============================================================================
@@ -22,9 +25,16 @@ if(PkgConfig_FOUND)
     pkg_check_modules(MOSQUITTO libmosquitto)
 endif()
 
-find_package(vssdag QUIET)
-find_package(Open1722 QUIET)
-find_package(GTest QUIET)
+# Check if targets already exist (when built from top-level CMake)
+if(NOT TARGET vss::dag)
+    find_package(vssdag QUIET)
+endif()
+if(NOT TARGET open1722)
+    find_package(Open1722 QUIET)
+endif()
+if(NOT TARGET GTest::gtest)
+    find_package(GTest QUIET)
+endif()
 
 # ============================================================================
 # IDL compilation for examples
@@ -35,7 +45,7 @@ find_package(GTest QUIET)
 find_program(IDLC_EXECUTABLE idlc REQUIRED)
 
 # Find libvss-types IDL directory
-set(VSS_TYPES_IDL_DIR "${CMAKE_SOURCE_DIR}/../libvss-types/idl")
+set(VSS_TYPES_IDL_DIR "${VEP_DDS_ROOT}/../libvss-types/idl")
 if(NOT EXISTS "${VSS_TYPES_IDL_DIR}/vss_types.idl")
     message(FATAL_ERROR "libvss-types IDL not found at ${VSS_TYPES_IDL_DIR}")
 endif()
@@ -97,7 +107,7 @@ add_library(example_vdr_sinks STATIC ${VDR_SINKS_SOURCES})
 
 target_include_directories(example_vdr_sinks PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
+    ${VEP_DDS_ROOT}/src
 )
 
 target_link_libraries(example_vdr_sinks PUBLIC
@@ -119,7 +129,7 @@ add_library(example_vdr_core STATIC
 
 target_include_directories(example_vdr_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
+    ${VEP_DDS_ROOT}/src
 )
 
 target_link_libraries(example_vdr_core PUBLIC
@@ -135,7 +145,7 @@ add_library(example_vdr_testing STATIC
 
 target_include_directories(example_vdr_testing PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
+    ${VEP_DDS_ROOT}/src
 )
 
 target_link_libraries(example_vdr_testing PUBLIC
@@ -153,12 +163,12 @@ find_program(PROTOC_EXECUTABLE protoc REQUIRED)
 find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
 
 set(OTLP_PROTO_FILES
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/common/v1/common.proto
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/resource/v1/resource.proto
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/metrics/v1/metrics.proto
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/logs/v1/logs.proto
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
-    ${CMAKE_SOURCE_DIR}/proto/opentelemetry/proto/collector/logs/v1/logs_service.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/common/v1/common.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/resource/v1/resource.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/metrics/v1/metrics.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/logs/v1/logs.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto
+    ${VEP_DDS_ROOT}/proto/opentelemetry/proto/collector/logs/v1/logs_service.proto
 )
 
 set(PROTO_SRCS)
@@ -169,7 +179,7 @@ set(GRPC_HDRS)
 foreach(PROTO_FILE ${OTLP_PROTO_FILES})
     get_filename_component(PROTO_DIR ${PROTO_FILE} DIRECTORY)
     get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
-    file(RELATIVE_PATH PROTO_REL_DIR ${CMAKE_SOURCE_DIR}/proto ${PROTO_DIR})
+    file(RELATIVE_PATH PROTO_REL_DIR ${VEP_DDS_ROOT}/proto ${PROTO_DIR})
 
     set(PROTO_SRC ${PROTO_OUTPUT_DIR}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.cc)
     set(PROTO_HDR ${PROTO_OUTPUT_DIR}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.h)
@@ -187,7 +197,7 @@ foreach(PROTO_FILE ${OTLP_PROTO_FILES})
             OUTPUT ${PROTO_SRC} ${PROTO_HDR} ${GRPC_SRC} ${GRPC_HDR}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTO_OUTPUT_DIR}/${PROTO_REL_DIR}
             COMMAND ${PROTOC_EXECUTABLE}
-                --proto_path=${CMAKE_SOURCE_DIR}/proto
+                --proto_path=${VEP_DDS_ROOT}/proto
                 --cpp_out=${PROTO_OUTPUT_DIR}
                 --grpc_out=${PROTO_OUTPUT_DIR}
                 --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
@@ -200,7 +210,7 @@ foreach(PROTO_FILE ${OTLP_PROTO_FILES})
             OUTPUT ${PROTO_SRC} ${PROTO_HDR}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${PROTO_OUTPUT_DIR}/${PROTO_REL_DIR}
             COMMAND ${PROTOC_EXECUTABLE}
-                --proto_path=${CMAKE_SOURCE_DIR}/proto
+                --proto_path=${VEP_DDS_ROOT}/proto
                 --cpp_out=${PROTO_OUTPUT_DIR}
                 ${PROTO_FILE}
             DEPENDS ${PROTO_FILE}
@@ -229,47 +239,47 @@ endif()
 
 # Metrics probe
 add_executable(vdr_metrics_probe probes/vdr_metrics_probe/main.cpp)
-target_include_directories(vdr_metrics_probe PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(vdr_metrics_probe PRIVATE ${VEP_DDS_ROOT}/src)
 target_link_libraries(vdr_metrics_probe PRIVATE vdr_common example_telemetry_idl glog::glog)
 
 # Event probe
 add_executable(vdr_event_probe probes/vdr_event_probe/main.cpp)
-target_include_directories(vdr_event_probe PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(vdr_event_probe PRIVATE ${VEP_DDS_ROOT}/src)
 target_link_libraries(vdr_event_probe PRIVATE vdr_common example_telemetry_idl glog::glog)
 
 # OTLP-to-DDS Bridge
 add_executable(vdr_otel_bridge probes/vdr_otel_bridge/main.cpp)
-target_include_directories(vdr_otel_bridge PRIVATE ${CMAKE_SOURCE_DIR}/src ${PROTO_OUTPUT_DIR})
+target_include_directories(vdr_otel_bridge PRIVATE ${VEP_DDS_ROOT}/src ${PROTO_OUTPUT_DIR})
 target_link_libraries(vdr_otel_bridge PRIVATE vdr_common example_telemetry_idl otlp_proto glog::glog)
 
-# VSS DAG Probe (if libvssdag found)
-if(vssdag_FOUND)
+# VSS DAG Probe (if libvssdag available)
+if(TARGET vssdag)
     add_executable(vdr_vssdag_probe probes/vdr_vssdag_probe/main.cpp)
-    target_include_directories(vdr_vssdag_probe PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(vdr_vssdag_probe PRIVATE vdr_common example_telemetry_idl vss::dag yaml-cpp::yaml-cpp glog::glog)
+    target_include_directories(vdr_vssdag_probe PRIVATE ${VEP_DDS_ROOT}/src)
+    target_link_libraries(vdr_vssdag_probe PRIVATE vdr_common example_telemetry_idl vssdag yaml-cpp::yaml-cpp glog::glog)
 endif()
 
-# AVTP Probe (if Open1722 found)
-if(Open1722_FOUND)
+# AVTP Probe (if Open1722 available)
+if(TARGET open1722)
     add_executable(vdr_avtp_probe probes/vdr_avtp_probe/main.cpp)
-    target_include_directories(vdr_avtp_probe PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(vdr_avtp_probe PRIVATE ${VEP_DDS_ROOT}/src)
     target_link_libraries(vdr_avtp_probe PRIVATE vdr_common example_telemetry_idl open1722 glog::glog)
 endif()
 
 # ============================================================================
-# Tests (if GTest found)
+# Tests (if GTest available)
 # ============================================================================
 
-if(GTest_FOUND)
+if(TARGET GTest::gtest)
     enable_testing()
 
-    add_executable(test_dds_wrapper ${CMAKE_SOURCE_DIR}/tests/test_dds_wrapper.cpp)
-    target_include_directories(test_dds_wrapper PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    add_executable(test_dds_wrapper ${VEP_DDS_ROOT}/tests/test_dds_wrapper.cpp)
+    target_include_directories(test_dds_wrapper PRIVATE ${VEP_DDS_ROOT}/src)
     target_link_libraries(test_dds_wrapper PRIVATE vdr_common example_telemetry_idl GTest::gtest GTest::gtest_main)
     add_test(NAME test_dds_wrapper COMMAND test_dds_wrapper)
 
-    add_executable(test_integration ${CMAKE_SOURCE_DIR}/tests/test_integration.cpp)
-    target_include_directories(test_integration PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
+    add_executable(test_integration ${VEP_DDS_ROOT}/tests/test_integration.cpp)
+    target_include_directories(test_integration PRIVATE ${VEP_DDS_ROOT}/src ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(test_integration PRIVATE vdr_common example_vdr_sinks example_vdr_testing GTest::gtest)
     add_test(NAME test_integration COMMAND test_integration)
 endif()
